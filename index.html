@@ -1,0 +1,1712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Parallel Silence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Plus+Jakarta+Sans:wght@200;300;400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-void: #030304;
+            --surface-seen: rgba(255, 255, 255, 0.02);
+            --surface-felt: rgba(212, 175, 55, 0.03);
+            --border-seen: rgba(255, 255, 255, 0.08);
+            --border-felt: rgba(212, 175, 55, 0.25);
+            --gold: #d4af37;
+            --gold-glow: rgba(212, 175, 55, 0.15);
+            --text-cold: #d8d8e0;
+            --text-warm: #f3e6c8;
+            --text-muted: #71717a;
+            --serif: 'Cormorant Garamond', serif;
+            --sans: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-void);
+            color: var(--text-cold);
+            font-family: var(--sans);
+            line-height: 1.8;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient Background */
+        .ambient-sphere {
+            position: fixed;
+            top: 20%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.05) 0%, rgba(0,0,0,0) 70%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(80px);
+        }
+
+        .serif { font-family: var(--serif); }
+
+        /* Audio Player Controller */
+        .audio-player-widget {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 15, 18, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-seen);
+            padding: 8px 14px;
+            border-radius: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transition: border-color 0.3s ease;
+        }
+
+        .audio-player-widget:hover {
+            border-color: var(--border-felt);
+        }
+
+        .audio-btn {
+            background: transparent;
+            border: none;
+            color: var(--gold);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        .audio-btn:hover {
+            transform: scale(1.08);
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        .audio-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .audio-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            user-select: none;
+        }
+
+        .volume-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 50px;
+            height: 3px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--gold);
+            cursor: pointer;
+        }
+
+        /* Header Section */
+        header {
+            position: relative;
+            z-index: 1;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem 1.5rem;
+        }
+
+        .header-title {
+            font-size: clamp(2.8rem, 8vw, 5.5rem);
+            font-weight: 300;
+            letter-spacing: -0.03em;
+            color: #ffffff;
+            margin-bottom: 1rem;
+            line-height: 1.1;
+        }
+
+        .header-subtitle {
+            color: var(--text-muted);
+            font-size: clamp(1rem, 2.2vw, 1.25rem);
+            max-width: 540px;
+            font-weight: 300;
+            margin-bottom: 3rem;
+        }
+
+        .scroll-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 30px;
+            border: 1px solid var(--border-seen);
+            background: rgba(255,255,255,0.01);
+            color: var(--gold);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+
+        /* View Toggle Controls */
+        .view-controls {
+            position: sticky;
+            top: 20px;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 4rem;
+            padding: 0 1rem;
+        }
+
+        .toggle-container {
+            display: inline-flex;
+            background: rgba(15, 15, 18, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-seen);
+            border-radius: 40px;
+            padding: 4px;
+            gap: 4px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.55rem 1.25rem;
+            border-radius: 30px;
+            font-family: var(--sans);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn:hover {
+            color: var(--text-cold);
+        }
+
+        .toggle-btn.active {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-btn.active[data-view="felt"] {
+            background: var(--gold-glow);
+            color: var(--gold);
+            border: 1px solid var(--border-felt);
+        }
+
+        /* Timeline Main Grid */
+        .timeline-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 1.25rem;
+        }
+
+        .timeline-axis {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(212,175,55,0.2) 15%, rgba(212,175,55,0.2) 85%, rgba(0,0,0,0) 100%);
+            transform: translateX(-50%);
+            z-index: 0;
+            display: none;
+        }
+
+        @media (min-width: 900px) {
+            .timeline-axis { display: block; }
+        }
+
+        .memory-entry {
+            position: relative;
+            margin-bottom: 8rem;
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1), transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .memory-entry.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .node-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .node-date {
+            font-size: clamp(2rem, 4vw, 3rem);
+            color: var(--gold);
+            font-weight: 300;
+            line-height: 1;
+            margin-bottom: 0.4rem;
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        }
+
+        .node-title {
+            font-size: clamp(0.9rem, 1.8vw, 1.1rem);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 300;
+        }
+
+        /* Centered Dynamic Photo Frame Fix (Option 1) */
+        .node-photo-container {
+            max-width: 520px;
+            margin: 0 auto 2.5rem auto;
+            position: relative;
+            z-index: 2;
+        }
+
+        .photo-frame {
+            position: relative;
+            width: 100%;
+            min-height: 220px;
+            height: auto;
+            background: rgba(15, 15, 20, 0.6);
+            border: 1px dashed rgba(212, 175, 55, 0.3);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            overflow: hidden;
+            transition: border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .photo-frame.has-image {
+            border-style: solid;
+            background: transparent;
+        }
+
+        .photo-frame:hover {
+            border-color: var(--gold);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.15);
+        }
+
+        .photo-frame img {
+            width: 100%;
+            height: auto;
+            max-height: 520px;
+            object-fit: contain;
+            border-radius: 11px;
+            display: none;
+        }
+
+        .photo-frame.has-image img {
+            display: block;
+        }
+
+        .photo-frame.has-image .placeholder-text {
+            display: none;
+        }
+
+        .placeholder-text {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            pointer-events: none;
+            padding: 2rem 1rem;
+        }
+
+        .placeholder-text span {
+            font-size: 0.75rem;
+            opacity: 0.6;
+        }
+
+        .file-input { display: none; }
+
+        /* Dual Lens Cards Grid */
+        .dual-lens {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            position: relative;
+            z-index: 2;
+            transition: all 0.5s ease;
+        }
+
+        @media (min-width: 900px) {
+            .dual-lens {
+                grid-template-columns: 1fr 1fr;
+                gap: 2.5rem;
+            }
+        }
+
+        .dual-lens.show-seen-only {
+            grid-template-columns: 1fr;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .dual-lens.show-seen-only .lens-felt { display: none; }
+
+        .dual-lens.show-felt-only {
+            grid-template-columns: 1fr;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .dual-lens.show-felt-only .lens-seen { display: none; }
+
+        .lens-panel {
+            border-radius: 16px;
+            padding: 2rem;
+            position: relative;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: border-color 0.4s ease, box-shadow 0.4s ease, opacity 0.4s ease;
+        }
+
+        .lens-seen {
+            background: var(--surface-seen);
+            border: 1px solid var(--border-seen);
+        }
+
+        .lens-felt {
+            background: var(--surface-felt);
+            border: 1px solid var(--border-felt);
+            box-shadow: inset 0 0 30px var(--gold-glow);
+        }
+
+        .lens-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.25em;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .lens-seen .lens-label { color: var(--text-muted); }
+        .lens-felt .lens-label { color: var(--gold); }
+
+        .lens-label-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .lens-seen .lens-label-dot { background: var(--text-muted); }
+        .lens-felt .lens-label-dot { 
+            background: var(--gold); 
+            box-shadow: 0 0 10px var(--gold);
+        }
+
+        .outfit-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-cold);
+            padding: 0.35rem 0.85rem;
+            border-radius: 20px;
+            margin-bottom: 1.25rem;
+            width: fit-content;
+        }
+
+        .lens-felt .outfit-badge {
+            background: var(--gold-glow);
+            border-color: rgba(212, 175, 55, 0.3);
+            color: var(--gold);
+        }
+
+        .lens-content {
+            font-size: 1.05rem;
+            font-weight: 300;
+        }
+
+        .lens-seen .lens-content p {
+            color: var(--text-cold);
+            margin-bottom: 0.8rem;
+        }
+
+        .lens-felt .lens-content {
+            font-family: var(--serif);
+            font-size: 1.35rem;
+            color: var(--text-warm);
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .lens-felt .lens-content p { margin-bottom: 0.8rem; }
+        .lens-content p:last-child { margin-bottom: 0; }
+
+        /* UNIFORM & DRAGGABLE CARDS SLIDER SECTION */
+        .cards-slider-section {
+            position: relative;
+            z-index: 2;
+            padding: 4rem 1.25rem 6rem 1.25rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .slider-viewport {
+            overflow: hidden;
+            width: 100%;
+            position: relative;
+            border-radius: 20px;
+            cursor: grab;
+            user-select: none;
+        }
+
+        .slider-viewport:active {
+            cursor: grabbing;
+        }
+
+        .slider-track {
+            display: flex;
+            transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+            width: 100%;
+        }
+
+        .slider-track.dragging {
+            transition: none !important;
+        }
+
+        .slide-card {
+            min-width: 100%;
+            box-sizing: border-box;
+            padding: 0 0.5rem;
+        }
+
+        /* Fixed Uniform Card Height & Scrollable Content */
+        .glass-card {
+            background: rgba(18, 18, 22, 0.65);
+            border: 1px solid var(--border-felt);
+            border-radius: 20px;
+            padding: 3.5rem 2.5rem;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 0 30px var(--gold-glow);
+            height: 520px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        .glass-card::-webkit-scrollbar {
+            width: 4px;
+        }
+        .glass-card::-webkit-scrollbar-thumb {
+            background: var(--border-felt);
+            border-radius: 4px;
+        }
+
+        /* Card Content Formatting */
+        .climax-quote {
+            font-family: var(--sans);
+            font-size: clamp(1.1rem, 2vw, 1.3rem);
+            line-height: 1.8;
+            color: var(--text-cold);
+            font-weight: 300;
+        }
+
+        .climax-quote strong {
+            display: block;
+            margin-top: 1.8rem;
+            font-family: var(--serif);
+            font-size: clamp(1.4rem, 2.5vw, 2rem);
+            color: var(--gold);
+            font-weight: 400;
+            font-style: italic;
+            line-height: 1.5;
+        }
+
+        .reflection-card-title {
+            font-size: clamp(2.2rem, 5vw, 3.4rem);
+            font-weight: 300;
+            color: #ffffff;
+            margin-bottom: 0.4rem;
+        }
+
+        .reflection-card-sub {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            margin-bottom: 2rem;
+        }
+
+        .reflection-card-body {
+            font-family: var(--sans);
+            font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+            font-weight: 300;
+            color: var(--text-cold);
+            line-height: 1.8;
+        }
+
+        .reflection-card-body p {
+            margin-bottom: 0.6rem;
+        }
+
+        .reflection-card-body .silence-line {
+            color: var(--gold);
+            font-family: var(--serif);
+            font-style: italic;
+            font-size: clamp(1.4rem, 2.8vw, 1.9rem);
+            display: block;
+            margin: 1.2rem 0;
+            line-height: 1.3;
+        }
+
+        /* Slider Controls & Nav */
+        .slider-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 2rem;
+            padding: 0 1rem;
+        }
+
+        .slider-arrow {
+            background: rgba(15, 15, 18, 0.8);
+            border: 1px solid var(--border-seen);
+            color: var(--gold);
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .slider-arrow:hover {
+            border-color: var(--gold);
+            background: var(--gold-glow);
+            transform: scale(1.05);
+        }
+
+        .slider-arrow svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .slider-dots {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .slider-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .slider-dot.active {
+            background: var(--gold);
+            width: 24px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px var(--gold);
+        }
+
+        /* Lightbox Modal */
+        .lightbox-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .lightbox-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .lightbox-img {
+            max-width: 90vw;
+            max-height: 85vh;
+            border-radius: 8px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border: 1px solid var(--border-felt);
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 25px;
+            right: 30px;
+            color: var(--text-cold);
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s ease;
+        }
+
+        .lightbox-close:hover { color: var(--gold); }
+
+        footer {
+            text-align: center;
+            padding: 5rem 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            letter-spacing: 0.3em;
+            opacity: 0.4;
+        }
+
+        @media (max-width: 600px) {
+            .lens-panel { padding: 1.5rem; }
+            .photo-frame { min-height: 180px; }
+            .memory-entry { margin-bottom: 5rem; }
+            .audio-player-widget { top: 12px; right: 12px; }
+            .audio-label { display: none; }
+            .glass-card { padding: 2.5rem 1.5rem; height: 460px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-sphere"></div>
+
+    <!-- Audio Controller -->
+    <div class="audio-player-widget">
+        <button class="audio-btn" id="audioToggleBtn" title="Toggle Sound">
+            <svg id="playIcon" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none;">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+        </button>
+        <span class="audio-label" id="audioStatusText">Sound Off</span>
+        <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.05" value="0.3">
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div class="lightbox-modal" id="lightboxModal">
+        <span class="lightbox-close" id="lightboxClose">&times;</span>
+        <img src="" alt="Full view memory" class="lightbox-img" id="lightboxImg">
+    </div>
+
+    <header>
+        <h1 class="header-title serif">The Parallel Silence</h1>
+        <p class="header-subtitle">Two timelines unfolding side by side—what you experienced, versus what was happening inside me.</p>
+        <div class="scroll-pill">Scroll to enter</div>
+    </header>
+
+    <!-- View Toggle Switch -->
+    <nav class="view-controls">
+        <div class="toggle-container">
+            <button class="toggle-btn active" data-view="both">Both Timelines</button>
+            <button class="toggle-btn" data-view="seen">What You Saw</button>
+            <button class="toggle-btn" data-view="felt">What I Felt</button>
+        </div>
+    </nav>
+
+    <main class="timeline-container">
+        <div class="timeline-axis"></div>
+
+        <!-- 20 Oct 2020 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">26 October 2020</h2>
+                <div class="node-title">The First Time I Saw You</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/oct-20.jpg" alt="20 October 2020 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>Video call.</p>
+                            <p>A new company.</p>
+                            <p>A normal introduction.</p>
+                            <p>You probably don't remember that call.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="lens-content">
+                            <p>I do, you wearing a Black Suit</p>
+                            <p>Because without knowing it...</p>
+                            <p>I had just met someone who would quietly become one of the most important people in my life.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 17 Dec 2020 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">17 December 2020</h2>
+                <div class="node-title">The Walk To The Auto Stand</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/dec-20.jpg" alt="17 December 2020 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>Our first conversation.</p>
+                            <p>It was only a walk.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Green Jacket • Black Pants</div>
+                        <div class="lens-content">
+                            <p>But somehow...</p>
+                            <p>it became the beginning of every conversation I would replay in my head years later.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 27 Jan 2021 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">27 January 2021</h2>
+                <div class="node-title">The Day You Chose Me</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/jan-21.jpg" alt="27 January 2021 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>You were brave enough to tell me how you felt.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="lens-content">
+                            <p>Looking back...</p>
+                            <p>I don't think I ever matched the courage you showed that day.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 5 Feb 2021 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">5 February 2021</h2>
+                <div class="node-title">The First Time You Held My Hand</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/Feb-21.jpg" alt="5 February 2021 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>You held my hand.</p>
+                            <p>Then you kissed it.</p>
+                            <p>I smiled.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Floral Cream Suit</div>
+                        <div class="lens-content">
+                            <p>But I don't think I ever told you...</p>
+                            <p>how impossible it became to forget that moment.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 7 Feb 2021 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">7 February 2021</h2>
+                <div class="node-title">The Joke That Hid The Truth</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/7-feb-21.jpg" alt="7 February 2021 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>I teased you all day by pretending to look at other girls.</p>
+                            <p>I laughed. You Cried.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Black Netted Top • Blue Jeans • Long Coat</div>
+                        <div class="lens-content">
+                            <p>But I never balanced those jokes with the one sentence you deserved to hear.</p>
+                            <p>That you were already the only person I wanted to keep looking at.</p>
+                            <p>I felt so bad that I made you cry coz of my stupidity.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 15 Feb 2021 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">15 February 2021</h2>
+                <div class="node-title">First Fight</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/15-feb-21.jpg" alt="15 February 2021 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>We argued.</p>
+                            <p>Then somehow... I walked away with my first kiss.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="lens-content">
+                            <p>Looking back,</p>
+                            <p>you always found ways to love me louder than I knew how to love you back.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 18 March 2023 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">18 March 2023</h2>
+                <div class="node-title">Bhubaneswar</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/18-mar-23.jpg" alt="18 March 2023 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>I travelled hundreds of kilometers just to see you.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">You came in White Top • Blue Jeans</div>
+                        <div class="lens-content">
+                            <p>Yet even then...</p>
+                            <p>I still couldn't travel the few inches between my heart and my voice.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 19 March 2023 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">19 March 2023</h2>
+                <div class="node-title">Another Day With You</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/19-mar-23.jpg" alt="19 March 2023 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>Two ordinary days.</p>
+                            <p>Two memories that became permanent.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Blue Floral Top • Light Blue Jeans</div>
+                        <div class="lens-content">
+                            <p>Funny...</p>
+                            <p>I remembered your clothes.</p>
+                            <p>But not the words I should have said.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 26 September 2023 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">26 September 2023</h2>
+                <div class="node-title">First Metro Ride</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/sep-23.jpg" alt="30 September 2023 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>You came to Delhi from Pune.</p>
+                            <p>I wanted to ask you to meet me. I never did. You asked anyway.</p>
+                            <p>We met. You pinhed and bite my forearm whole day.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Rainbow Color Striped Top • Black Jeans</div>
+                        <div class="lens-content">
+                            <p>I thought staying close to you would somehow explain everything my silence couldn't.</p>
+                            <p>Today I know...</p>
+                            <p>affection without expression can still leave someone feeling alone.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 7 May 2024 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">7 May 2024</h2>
+                <div class="node-title">Moved to Noida</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/07-May-25.jpg" alt="7 May 2024 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>You had just moved to Noida.</p>
+                            <p>We met.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Formal Red Shirt • Grey Pants</div>
+                        <div class="lens-content">
+                            <p>I remember looking at you and thinking she looks so good.</p>
+                            <p>But I don't remember saying it.</p>
+                            <p>Looking back...</p>
+                            <p>I spent too much time assuming you knew what my silence meant.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 10 May 2024 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">10 May 2024</h2>
+                <div class="node-title">The Metro</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/10-May-25.jpg" alt="10 May 2024 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>You quietly said... "I'll meet you after two months."</p>
+                            <p>I kissed your forehead.</p>
+                            <p>Later that evening... We stood together in the metro.</p>
+                            <p>You waited. I stayed silent.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Blue Floral Shirt • Blue Jeans</div>
+                        <div class="lens-content">
+                            <p>Suddenly those words felt unbearably long.</p>
+                            <p>I kissed your forehead because it was easier than saying, "Please don't go."</p>
+                            <p>I think you were hoping I'd finally say everything I'd kept inside.</p>
+                            <p>Instead... I watched another moment become another bad memory.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 7 June 2025 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">7 June 2025</h2>
+                <div class="node-title">Airport</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/jun-25.jpg" alt="7 June 2025 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>I watched you leave.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">White Shirt • Dark Blue Jeans • White Shoes • Gold Chain</div>
+                        <div class="lens-content">
+                            <p>There are moments where time keeps moving for everyone else...</p>
+                            <p>but completely stops for one person.</p>
+                            <p>This was one of mine.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 27 October 2025 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">27 October 2025</h2>
+                <div class="node-title">First Dinner</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/oct-25.jpg" alt="27 October 2025 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>I had so many bad things I wanted to say. I carried anger. Hurt. Questions.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">Black Top • Black Pants • Green Floral Coat</div>
+                        <div class="lens-content">
+                            <p>When I looked at you... and everything disappeared.</p>
+                            <p>I rested my head on your shoulder.</p>
+                            <p>I hoped you could somehow feel everything I couldn't say.</p>
+                            <p>Looking back...</p>
+                            <p>I understand why that wasn't enough.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 11 July 2026 -->
+        <article class="memory-entry">
+            <div class="node-header">
+                <h2 class="node-date serif">11 July 2026</h2>
+                <div class="node-title">First Date</div>
+            </div>
+
+            <div class="node-photo-container">
+                <div class="photo-frame">
+                    <span class="placeholder-text">📷 Add Photo <span>Click to upload or view</span></span>
+                    <img src="images/jul-26.jpg" alt="11 July 2026 Memory">
+                </div>
+                <input type="file" class="file-input" accept="image/*">
+            </div>
+
+            <div class="dual-lens">
+                <div class="lens-panel lens-seen">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What you probably saw</div>
+                        <div class="lens-content">
+                            <p>You pampered me with a date.</p>
+                            <p>You gave us another chance to simply be together.</p>
+                            <p>I rushed it.</p>
+                            <p>I acted like everything was normal.</p>
+                            <p>I acted normally like I don't care.</p>
+                            <p>I avoided the conversation that mattered most.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="lens-panel lens-felt">
+                    <div>
+                        <div class="lens-label"><span class="lens-label-dot"></span> What was happening inside me</div>
+                        <div class="outfit-badge">All Black</div>
+                        <div class="lens-content">
+                            <p>But I was so happy to see you at last.</p>
+                            <p>That i forget to say sorry for coming late, not bringing flowers for you, not hugging you properly.</p>
+                            <p>I just wanted to feel that peace that I'm getting after seeing you so long.</p>
+                            <p>I wanted to hold your hand, rest my head on your shoulder, look at you and sit with you without saying anything for hours.</p>
+                            <p>Thats how I feel peace(sukoooon) and my head stop overthinking.</p>
+                            <p>I do realize you need the same pampering and peace from me and I know how to give it to you.</p>
+                            <p>I kept believing there would always be another moment to finally tell you what you meant to me.</p>
+                            <p>You hinted me few times but I keep it about myself which I'm really sorry for.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+    </main>
+
+    <!-- EXPANDABLE CARDS SLIDER -->
+    <section class="cards-slider-section">
+        <div class="slider-viewport" id="sliderViewport">
+            <div class="slider-track" id="sliderTrack">
+                
+                <!-- Slide 1: Climax Card -->
+                <div class="slide-card">
+                    <div class="glass-card">
+                        <div class="climax-quote">
+                            I remembered every date.<br>
+                            Every outfit.<br>
+                            Every first.<br>
+                            Every little detail.
+                            <strong>
+                                But I forgot the only thing you kept asking me to do...<br>
+                                To make you feel how special you were to me while you were standing right beside me.
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+				
+                <!-- Slide 2: Reflection Card -->
+                <div class="slide-card">
+                    <div class="glass-card">
+                        <h2 class="reflection-card-title serif">If I Could Go Back</h2>
+                        <div class="reflection-card-sub">Not as a promise • Not as a request • Simply as reflection</div>
+                        
+                        <div class="reflection-card-body">
+                            <p>I wouldn't change where we met.</p>
+                            <p>I wouldn't change the fights.</p>
+                            <p>I wouldn't even change the mistakes.</p>
+                            
+                            <span class="silence-line">I'd change the silence.</span>
+                            
+                            <p>Every time you waited for me to say something... I'd tell you.</p>
+                            <p>That seeing you made my day lighter.</p>
+                            <p>That every goodbye stayed with me longer than I admitted.</p>
+                            <p>That I noticed the little things you thought no one noticed.</p>
+                            <p>That you were never ordinary to me.</p>
+                            <p>And that I was grateful for every single time you chose to meet me.</p>
+                        </div>
+                    </div>
+                </div>
+				
+				 <div class="slide-card">
+                    <div class="glass-card">
+                        <div class="climax-quote">
+                            <strong>
+                                Barshaa, I’m truly sorry for my silence. I’m here, ready to love and cherish you the way you always deserved.
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Slider Controls -->
+        <div class="slider-controls">
+            <button class="slider-arrow" id="prevSlide" aria-label="Previous card">
+                <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+
+            <div class="slider-dots" id="sliderDots"></div>
+
+            <button class="slider-arrow" id="nextSlide" aria-label="Next card">
+                <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </button>
+        </div>
+    </section>
+
+    <footer>
+        •••
+    </footer>
+
+    <script>
+        // Check for pre-loaded image URLs
+        document.querySelectorAll('.photo-frame').forEach(frame => {
+            const img = frame.querySelector('img');
+            if (img && img.getAttribute('src').trim() !== '') {
+                frame.classList.add('has-image');
+            }
+        });
+
+        // Interactive Uploads & Lightbox
+        const lightboxModal = document.getElementById('lightboxModal');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const lightboxClose = document.getElementById('lightboxClose');
+
+        document.querySelectorAll('.node-photo-container').forEach(container => {
+            const frame = container.querySelector('.photo-frame');
+            const input = container.querySelector('.file-input');
+            const img = frame.querySelector('img');
+
+            frame.addEventListener('click', () => {
+                if (frame.classList.contains('has-image') && img.src) {
+                    lightboxImg.src = img.src;
+                    lightboxModal.classList.add('active');
+                } else {
+                    input.click();
+                }
+            });
+
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        img.src = evt.target.result;
+                        frame.classList.add('has-image');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+
+        // Lightbox Close Logic
+        lightboxClose.addEventListener('click', () => {
+            lightboxModal.classList.remove('active');
+        });
+
+        lightboxModal.addEventListener('click', (e) => {
+            if (e.target === lightboxModal) {
+                lightboxModal.classList.remove('active');
+            }
+        });
+
+        // Scroll Observer
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px 0px -100px 0px',
+            threshold: 0.1
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.memory-entry').forEach(block => {
+            observer.observe(block);
+        });
+
+        // View Mode Switch Logic
+        const toggleButtons = document.querySelectorAll('.toggle-btn');
+        const dualLensGrids = document.querySelectorAll('.dual-lens');
+
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                toggleButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+
+                const viewMode = button.getAttribute('data-view');
+
+                dualLensGrids.forEach(grid => {
+                    grid.classList.remove('show-seen-only', 'show-felt-only');
+                    
+                    if (viewMode === 'seen') {
+                        grid.classList.add('show-seen-only');
+                    } else if (viewMode === 'felt') {
+                        grid.classList.add('show-felt-only');
+                    }
+                });
+            });
+        });
+
+        // ENHANCED SLIDER LOGIC (DRAG GESTURES + AUTOPLAY + EQUAL SIZES)
+        const sliderViewport = document.getElementById('sliderViewport');
+        const sliderTrack = document.getElementById('sliderTrack');
+        const slides = document.querySelectorAll('.slide-card');
+        const prevBtn = document.getElementById('prevSlide');
+        const nextBtn = document.getElementById('nextSlide');
+        const dotsContainer = document.getElementById('sliderDots');
+
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+        let autoplayTimer = null;
+
+        // Build Dynamic Dots
+        slides.forEach((_, index) => {
+            const dot = document.createElement('div');
+            dot.classList.add('slider-dot');
+            if (index === 0) dot.classList.add('active');
+            dot.addEventListener('click', () => {
+                goToSlide(index);
+                resetAutoplay();
+            });
+            dotsContainer.appendChild(dot);
+        });
+
+        const dots = document.querySelectorAll('.slider-dot');
+
+        function updateSlider() {
+            sliderTrack.style.transform = `translateX(-${currentSlide * 100}%)`;
+            dots.forEach((dot, idx) => {
+                dot.classList.toggle('active', idx === currentSlide);
+            });
+        }
+
+        function goToSlide(index) {
+            currentSlide = index;
+            updateSlider();
+        }
+
+        function nextSlide() {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            updateSlider();
+        }
+
+        function prevSlide() {
+            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+            updateSlider();
+        }
+
+        nextBtn.addEventListener('click', () => {
+            nextSlide();
+            resetAutoplay();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            prevSlide();
+            resetAutoplay();
+        });
+
+        // Automatic Auto-Play Logic (5 seconds)
+        function startAutoplay() {
+            stopAutoplay();
+            autoplayTimer = setInterval(nextSlide, 5000);
+        }
+
+        function stopAutoplay() {
+            if (autoplayTimer) clearInterval(autoplayTimer);
+        }
+
+        function resetAutoplay() {
+            startAutoplay();
+        }
+
+        // Pause autoplay when hovering or scrolling on slider
+        sliderViewport.addEventListener('mouseenter', stopAutoplay);
+        sliderViewport.addEventListener('mouseleave', startAutoplay);
+
+        // MOUSE DRAG & TOUCH SWIPE DRAGGING LOGIC
+        let isDragging = false;
+        let startX = 0;
+        let currentTranslate = 0;
+        let prevTranslate = 0;
+
+        function getPositionX(event) {
+            return event.type.includes('mouse') ? event.pageX : event.touches[0].clientX;
+        }
+
+        function dragStart(event) {
+            isDragging = true;
+            startX = getPositionX(event);
+            sliderTrack.classList.add('dragging');
+            stopAutoplay();
+        }
+
+        function dragMove(event) {
+            if (!isDragging) return;
+            const currentPosition = getPositionX(event);
+            const diffX = currentPosition - startX;
+            const viewportWidth = sliderViewport.clientWidth;
+            
+            // Calculate translate offset percentage
+            const movePercent = (diffX / viewportWidth) * 100;
+            sliderTrack.style.transform = `translateX(${-currentSlide * 100 + movePercent}%)`;
+        }
+
+        function dragEnd(event) {
+            if (!isDragging) return;
+            isDragging = false;
+            sliderTrack.classList.remove('dragging');
+            
+            const endX = event.type.includes('mouse') ? event.pageX : (event.changedTouches[0] ? event.changedTouches[0].clientX : startX);
+            const diffX = endX - startX;
+
+            // Sensitivity threshold for slide trigger (50px)
+            if (diffX < -50) {
+                nextSlide();
+            } else if (diffX > 50) {
+                prevSlide();
+            } else {
+                updateSlider();
+            }
+            startAutoplay();
+        }
+
+        // Mouse Drag Events
+        sliderViewport.addEventListener('mousedown', dragStart);
+        window.addEventListener('mousemove', dragMove);
+        window.addEventListener('mouseup', dragEnd);
+
+        // Touch Swipe Events
+        sliderViewport.addEventListener('touchstart', dragStart, { passive: true });
+        sliderViewport.addEventListener('touchmove', dragMove, { passive: true });
+        sliderViewport.addEventListener('touchend', dragEnd, { passive: true });
+
+        // Start initial Autoplay
+        startAutoplay();
+
+        // Web Audio Synthesizer
+        class AmbientEngine {
+            constructor() {
+                this.ctx = null;
+                this.isPlaying = false;
+                this.gainNode = null;
+                this.oscillators = [];
+            }
+
+            init() {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                this.ctx = new AudioContext();
+                this.gainNode = this.ctx.createGain();
+                this.gainNode.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                this.gainNode.connect(this.ctx.destination);
+            }
+
+            play() {
+                if (!this.ctx) this.init();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const freqs = [130.81, 155.56, 196.00, 261.63, 311.13];
+                
+                freqs.forEach(freq => {
+                    const osc = this.ctx.createOscillator();
+                    const oscGain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    osc.detune.setValueAtTime((Math.random() - 0.5) * 12, this.ctx.currentTime);
+                    oscGain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                    
+                    osc.connect(oscGain);
+                    oscGain.connect(this.gainNode);
+                    
+                    osc.start();
+                    this.oscillators.push(osc);
+                });
+
+                this.isPlaying = true;
+            }
+
+            stop() {
+                if (this.oscillators.length) {
+                    this.oscillators.forEach(osc => osc.stop());
+                    this.oscillators = [];
+                }
+                this.isPlaying = false;
+            }
+
+            setVolume(val) {
+                if (this.gainNode) {
+                    this.gainNode.gain.setValueAtTime(val, this.ctx.currentTime);
+                }
+            }
+        }
+
+        const engine = new AmbientEngine();
+        const audioBtn = document.getElementById('audioToggleBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const statusText = document.getElementById('audioStatusText');
+        const volumeSlider = document.getElementById('volumeSlider');
+
+        audioBtn.addEventListener('click', () => {
+            if (!engine.isPlaying) {
+                engine.play();
+                playIcon.style.display = 'none';
+                pauseIcon.style.display = 'block';
+                statusText.innerText = 'Ambient On';
+            } else {
+                engine.stop();
+                playIcon.style.display = 'block';
+                pauseIcon.style.display = 'none';
+                statusText.innerText = 'Sound Off';
+            }
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            engine.setVolume(e.target.value);
+        });
+    </script>
+</body>
+</html>
